@@ -214,8 +214,6 @@ static void advertising_init(void)
 
     ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}};
 
-    NRF_LOG_INFO("LBS_UUID_SERVICE : 0x%x , m_lbs.uuid_type : 0x%x", LBS_UUID_SERVICE, m_lbs.uuid_type);
-
     // Build and set advertising data.
     memset(&advdata, 0, sizeof(advdata));
 
@@ -229,11 +227,9 @@ static void advertising_init(void)
     srdata.uuids_complete.p_uuids  = adv_uuids;
 
     err_code = ble_advdata_encode(&advdata, m_adv_data.adv_data.p_data, &m_adv_data.adv_data.len);
-    NRF_LOG_INFO("err_code : %d", err_code);NRF_LOG_FLUSH();
     APP_ERROR_CHECK(err_code);
 
     err_code = ble_advdata_encode(&srdata, m_adv_data.scan_rsp_data.p_data, &m_adv_data.scan_rsp_data.len);
-    NRF_LOG_INFO("err_code : %d", err_code);NRF_LOG_FLUSH();
     APP_ERROR_CHECK(err_code);
 
     ble_gap_adv_params_t adv_params;
@@ -249,7 +245,6 @@ static void advertising_init(void)
     adv_params.interval        = APP_ADV_INTERVAL;
 
     err_code = sd_ble_gap_adv_set_configure(&m_adv_handle, &m_adv_data, &adv_params);
-    NRF_LOG_INFO("err_code : %d", err_code);NRF_LOG_FLUSH();
     APP_ERROR_CHECK(err_code);
 }
 
@@ -375,8 +370,6 @@ static void advertising_start(void)
     APP_ERROR_CHECK(err_code);
 
     bsp_board_led_on(ADVERTISING_LED);
-    
-    NRF_LOG_INFO("advertising start");
 }
 
 
@@ -396,10 +389,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             bsp_board_led_on(CONNECTED_LED);
             bsp_board_led_off(ADVERTISING_LED);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
-
             err_code = app_button_enable();
             APP_ERROR_CHECK(err_code);
             break;
@@ -408,10 +399,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_INFO("Disconnected");
             bsp_board_led_off(CONNECTED_LED);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
-
             err_code = app_button_disable();
             APP_ERROR_CHECK(err_code);
-
             advertising_start();
             break;
 
@@ -533,8 +522,8 @@ static void buttons_init(void)
         {LEDBUTTON_BUTTON, false, BUTTON_PULL, button_event_handler}
     };
 
-    err_code = app_button_init(buttons, ARRAY_SIZE(buttons), BUTTON_DETECTION_DELAY);
-
+    err_code = app_button_init(buttons, ARRAY_SIZE(buttons),
+                               BUTTON_DETECTION_DELAY);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -578,24 +567,15 @@ int main(void)
     // Initialize.
     log_init();
     leds_init();
-    buttons_init();
-
     timers_init();
-    NRF_LOG_INFO("1");NRF_LOG_FLUSH();
+    buttons_init();
     power_management_init();
-    NRF_LOG_INFO("2");NRF_LOG_FLUSH();
     ble_stack_init();
-    NRF_LOG_INFO("3");NRF_LOG_FLUSH();
     gap_params_init();
-    NRF_LOG_INFO("4");NRF_LOG_FLUSH();
     gatt_init();
-    NRF_LOG_INFO("5");NRF_LOG_FLUSH();
-    advertising_init();
-    NRF_LOG_INFO("6");NRF_LOG_FLUSH();
     services_init();
-    NRF_LOG_INFO("7");NRF_LOG_FLUSH();
+    advertising_init();
     conn_params_init();
-    NRF_LOG_INFO("8");NRF_LOG_FLUSH();
 
     // Start execution.
     NRF_LOG_INFO("Blinky example started.");
@@ -608,3 +588,7 @@ int main(void)
     }
 }
 
+
+/**
+ * @}
+ */
