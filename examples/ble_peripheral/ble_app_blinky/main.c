@@ -493,14 +493,14 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
     {
         case LEDBUTTON_BUTTON:
             NRF_LOG_INFO("Send button state change.");
-            err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, button_action);
-            if (err_code != NRF_SUCCESS &&
-                err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-                err_code != NRF_ERROR_INVALID_STATE &&
-                err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
+//            err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, button_action);
+//            if (err_code != NRF_SUCCESS &&
+//                err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+//                err_code != NRF_ERROR_INVALID_STATE &&
+//                err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+//            {
+//                APP_ERROR_CHECK(err_code);
+//            }
             break;
 
         default:
@@ -569,17 +569,17 @@ int main(void)
     leds_init();
     timers_init();
     buttons_init();
-    power_management_init();
-    ble_stack_init();
-    gap_params_init();
-    gatt_init();
-    services_init();
-    advertising_init();
-    conn_params_init();
+//    power_management_init();
+//    ble_stack_init();
+//    gap_params_init();
+//    gatt_init();
+//    services_init();
+//    advertising_init();
+//    conn_params_init();
 
     // Start execution.
     NRF_LOG_INFO("Blinky example started.");
-    advertising_start();
+//    advertising_start();
 
     // Enter main loop.
     for (;;)

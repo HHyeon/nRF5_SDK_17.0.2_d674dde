@@ -657,6 +657,14 @@ uint32_t ble_advertising_start(ble_advertising_t * const p_advertising,
             return ret;
         }
     }
+    else
+    {
+        ret = sd_ble_gap_adv_stop(p_advertising->adv_handle);
+        if (ret != NRF_SUCCESS)
+        {
+            return ret;
+        }
+    }
 
     if (p_advertising->evt_handler != NULL)
     {

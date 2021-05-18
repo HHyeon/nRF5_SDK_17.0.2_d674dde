@@ -71,7 +71,8 @@
 #include "fds.h"
 #include "peer_manager.h"
 #include "peer_manager_handler.h"
-#include "bsp_btn_ble.h"
+//#include "bsp_btn_ble.h"
+#include "app_button.h"
 #include "sensorsim.h"
 #include "ble_conn_state.h"
 #include "nrf_ble_gatt.h"
@@ -83,6 +84,7 @@
 #include "nrf_log_default_backends.h"
 
 #include "ble_lbs.h"
+#include "pca10040.h"
 
 
 #define DEVICE_NAME                     "Nordic_Template"                       /**< Name of device. Will be included in the advertising data. */
@@ -129,9 +131,6 @@ static ble_uuid_t m_adv_uuids[] =                                               
 };
 
 
-static void advertising_start(bool erase_bonds);
-
-
 /**@brief Callback function for asserts in the SoftDevice.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
@@ -161,7 +160,7 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
     switch (p_evt->evt_id)
     {
         case PM_EVT_PEERS_DELETE_SUCCEEDED:
-            advertising_start(false);
+            NRF_LOG_INFO("PEERS DELETE SUCCEEDED");
             break;
 
         default:
@@ -345,19 +344,6 @@ static void conn_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
-/**@brief Function for starting timers.
- */
-static void application_timers_start(void)
-{
-    /* YOUR_JOB: Start your timers. below is an example of how to start a timer.
-       ret_code_t err_code;
-       err_code = app_timer_start(m_app_timer_id, TIMER_INTERVAL, NULL);
-       APP_ERROR_CHECK(err_code); */
-
-}
-
-
 /**@brief Function for putting the chip into sleep mode.
  *
  * @note This function will not return.
@@ -368,14 +354,6 @@ static void sleep_mode_enter(void)
     NRF_LOG_FLUSH();
 
     ret_code_t err_code;
-
-    err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-    APP_ERROR_CHECK(err_code);
-
-    // Prepare wakeup buttons.
-    err_code = bsp_btn_ble_sleep_mode_prepare();
-    APP_ERROR_CHECK(err_code);
-
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
     err_code = sd_power_system_off();
     APP_ERROR_CHECK(err_code);
@@ -396,12 +374,11 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
             NRF_LOG_INFO("Fast advertising.");
-            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
-            APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_ADV_EVT_IDLE:
-            sleep_mode_enter();
+            NRF_LOG_INFO("advertising IDLE.");
+//            sleep_mode_enter();
             break;
 
         default:
@@ -428,8 +405,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GAP_EVT_CONNECTED:
             NRF_LOG_INFO("Connected.");
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
@@ -542,56 +517,68 @@ static void delete_bonds(void)
 }
 
 
-
-static void bsp_event_handler(bsp_event_t event)
+static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 {
     ret_code_t err_code;
 
-    switch (event)
+    if(button_action == APP_BUTTON_PUSH)
+    switch (pin_no)
     {
-        case BSP_EVENT_SLEEP:
-            sleep_mode_enter();
-            break; // BSP_EVENT_SLEEP
-
-        case BSP_EVENT_DISCONNECT:
-            err_code = sd_ble_gap_disconnect(m_conn_handle,
-                                             BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            if (err_code != NRF_ERROR_INVALID_STATE)
+        case BSP_BUTTON_0:
             {
-                APP_ERROR_CHECK(err_code);
+              if(m_advertising.adv_mode_current != BLE_ADV_MODE_IDLE)
+              {
+                uint32_t res = ble_advertising_start(&m_advertising, BLE_ADV_MODE_IDLE);
+                NRF_LOG_INFO("advertising stop res : %d", res);
+              }
+              else
+              {
+                uint32_t res = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+                NRF_LOG_INFO("advertising start res : %d", res);
+              }
             }
-            break; // BSP_EVENT_DISCONNECT
-
-        case BSP_EVENT_WHITELIST_OFF:
-            if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
-            {
-                err_code = ble_advertising_restart_without_whitelist(&m_advertising);
-                if (err_code != NRF_ERROR_INVALID_STATE)
-                {
-                    APP_ERROR_CHECK(err_code);
-                }
-            }
-            break; // BSP_EVENT_KEY_0
+            break;
+        case BSP_BUTTON_1:
+            delete_bonds();
+            break;
+        case BSP_BUTTON_2:
+              NRF_LOG_INFO("BSP_BUTTON_2");
+            break;
+        case BSP_BUTTON_3:
+              NRF_LOG_INFO("BSP_BUTTON_3");
+            break;
 
         default:
+            APP_ERROR_HANDLER(pin_no);
             break;
     }
+    NRF_LOG_FLUSH();
 }
 
 
-static void buttons_leds_init(bool * p_erase_bonds)
+static void buttons_init(void)
 {
     ret_code_t err_code;
-    bsp_event_t startup_event;
 
-    err_code = bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, bsp_event_handler);
+    //The array must be static because a pointer to it will be saved in the button handler module.
+    static app_button_cfg_t buttons[] =
+    {
+        {BSP_BUTTON_0, false, BUTTON_PULL, button_event_handler},
+        {BSP_BUTTON_1, false, BUTTON_PULL, button_event_handler},
+        {BSP_BUTTON_2, false, BUTTON_PULL, button_event_handler},
+        {BSP_BUTTON_3, false, BUTTON_PULL, button_event_handler}
+    };
+
+    err_code = app_button_init(buttons, ARRAY_SIZE(buttons), BUTTON_DETECTION_DELAY);
+
     APP_ERROR_CHECK(err_code);
+    
+    err_code = app_button_enable();
 
-    err_code = bsp_btn_ble_init(NULL, &startup_event);
     APP_ERROR_CHECK(err_code);
-
-    *p_erase_bonds = (startup_event == BSP_EVENT_CLEAR_BONDING_DATA);
 }
+
+
 
 
 
@@ -657,24 +644,6 @@ static void idle_state_handle(void)
 }
 
 
-/**@brief Function for starting advertising.
- */
-static void advertising_start(bool erase_bonds)
-{
-    if (erase_bonds == true)
-    {
-        delete_bonds();
-        // Advertising is started by PM_EVT_PEERS_DELETED_SUCEEDED event
-    }
-    else
-    {
-        ret_code_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
-
-        APP_ERROR_CHECK(err_code);
-    }
-}
-
-
 /**@brief Function for application main entry.
  */
 int main(void)
@@ -683,10 +652,9 @@ int main(void)
 
     // Initialize.
     log_init();
-
-    buttons_leds_init(&erase_bonds);
-
     timers_init();
+    buttons_init();
+
     power_management_init();
     ble_stack_init();
     gap_params_init();
@@ -699,9 +667,6 @@ int main(void)
 
     // Start execution.
     NRF_LOG_INFO("Template example started.");
-    application_timers_start();
-
-    advertising_start(erase_bonds);
 
     // Enter main loop.
     for (;;)
@@ -713,4 +678,25 @@ int main(void)
 
 /**
  * @}
+
+ 
+  err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+  if (err_code != NRF_ERROR_INVALID_STATE)
+  {
+      APP_ERROR_CHECK(err_code);
+  }
+
+
+  
+  if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
+  {
+      err_code = ble_advertising_restart_without_whitelist(&m_advertising);
+      if (err_code != NRF_ERROR_INVALID_STATE)
+      {
+          APP_ERROR_CHECK(err_code);
+      }
+  }
+
+
+
  */

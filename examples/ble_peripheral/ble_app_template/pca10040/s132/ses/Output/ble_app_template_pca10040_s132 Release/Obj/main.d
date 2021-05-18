@@ -81,9 +81,7 @@ Output/ble_app_template_pca10040_s132\ Release/Obj/main.o: \
  ../../../../../../components/ble/peer_manager/peer_manager_internal.h \
  ../../../../../../components/ble/peer_manager/peer_manager_handler.h \
  ../../../../../../components/ble/peer_manager/peer_manager.h \
- ../../../../../../components/libraries/bsp/bsp_btn_ble.h \
- ../../../../../../components/libraries/bsp/bsp.h \
- ../../../../../../components/boards/boards.h \
+ ../../../../../../components/libraries/button/app_button.h \
  ../../../../../../modules/nrfx/hal/nrf_gpio.h \
  ../../../../../../modules/nrfx/nrfx.h \
  ../../../../../../integration/nrfx/nrfx_config.h \
@@ -100,8 +98,6 @@ Output/ble_app_template_pca10040_s132\ Release/Obj/main.o: \
  ../../../../../../components/softdevice/s132/headers/nrf_sd_def.h \
  ../../../../../../components/softdevice/s132/headers/nrf_soc.h \
  ../../../../../../modules/nrfx/drivers/nrfx_errors.h \
- ../../../../../../components/boards/pca10040.h \
- ../../../../../../components/libraries/button/app_button.h \
  ../../../../../../components/libraries/sensorsim/sensorsim.h \
  ../../../../../../components/ble/common/ble_conn_state.h \
  ../../../../../../components/libraries/atomic/nrf_atomic.h \
@@ -119,4 +115,5 @@ Output/ble_app_template_pca10040_s132\ Release/Obj/main.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.50/include/stdlib.h \
  ../../../../../../components/libraries/balloc/nrf_balloc.h \
  ../../../../../../components/libraries/log/nrf_log_default_backends.h \
- ../../../../../../components/ble/ble_services/ble_lbs/ble_lbs.h
+ ../../../../../../components/ble/ble_services/ble_lbs/ble_lbs.h \
+ ../../../../../../components/boards/pca10040.h
