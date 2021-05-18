@@ -91,7 +91,7 @@
 #define MANUFACTURER_NAME               "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 
-#define APP_ADV_DURATION                18000                                   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
+#define APP_ADV_DURATION                6000                                   /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 #define APP_BLE_OBSERVER_PRIO           3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG            1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 
@@ -105,15 +105,6 @@
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                       /**< Number of attempts before giving up the connection parameter negotiation. */
 
 #define BUTTON_DETECTION_DELAY          APP_TIMER_TICKS(50)
-
-#define SEC_PARAM_BOND                  1                                       /**< Perform bonding. */
-#define SEC_PARAM_MITM                  0                                       /**< Man In The Middle protection not required. */
-#define SEC_PARAM_LESC                  0                                       /**< LE Secure Connections not enabled. */
-#define SEC_PARAM_KEYPRESS              0                                       /**< Keypress notifications not enabled. */
-#define SEC_PARAM_IO_CAPABILITIES       BLE_GAP_IO_CAPS_NONE                    /**< No I/O capabilities. */
-#define SEC_PARAM_OOB                   0                                       /**< Out Of Band data not available. */
-#define SEC_PARAM_MIN_KEY_SIZE          7                                       /**< Minimum encryption key size. */
-#define SEC_PARAM_MAX_KEY_SIZE          16                                      /**< Maximum encryption key size. */
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
@@ -148,6 +139,33 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 }
 
 
+
+const char *PM_EVT_MSGS[] = {
+"PM_EVT_BONDED_PEER_CONNECTED",
+"PM_EVT_CONN_SEC_START",
+"PM_EVT_CONN_SEC_SUCCEEDED",
+"PM_EVT_CONN_SEC_FAILED",
+"PM_EVT_CONN_SEC_CONFIG_REQ",
+"PM_EVT_CONN_SEC_PARAMS_REQ",
+"PM_EVT_STORAGE_FULL",
+"PM_EVT_ERROR_UNEXPECTED",
+"PM_EVT_PEER_",
+"ATA_UPDATE_SUCCEEDED",
+"PM_EVT_PEER_DATA_UPDATE_FAILED",
+"PM_EVT_PEER_DELETE_SUCCEEDED",
+"PM_EVT_PEER_DELETE_FAILED",
+"PM_EVT_PEERS_DELETE_SUCCEEDED",
+"PM_EVT_PEERS_DELETE_FAILED",
+"PM_EVT_LOCAL_DB_CACHE_APPLIED",
+"PM_EVT_LOCAL_DB_C",
+"CHE_APPLY_FAILED",
+"PM_EVT_SERVICE_CHANGED_IND_SENT",
+"PM_EVT_SERVICE_CHANGED_IND_CONFIRMED",
+"PM_EVT_SLAVE_SECURI",
+"Y_REQ",
+"PM_EVT_FLASH_GARBAGE_COLLECTED",
+"PM_EVT_FLASH_GARBAGE_COLLECTION_FAILED"};
+
 /**@brief Function for handling Peer Manager events.
  *
  * @param[in] p_evt  Peer Manager event.
@@ -164,6 +182,7 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
             break;
 
         default:
+        NRF_LOG_INFO("peer manager event : %s", PM_EVT_MSGS[p_evt->evt_id]);
             break;
     }
 }
@@ -268,23 +287,15 @@ static void led_write_handler(uint16_t conn_handle, ble_lbs_t * p_lbs, uint8_t l
 static void services_init(void)
 {
     ret_code_t         err_code;
+
     nrf_ble_qwr_init_t qwr_init = {0};
-
-    // Initialize Queued Write Module.
     qwr_init.error_handler = nrf_qwr_error_handler;
-
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
     
-
     ble_lbs_init_t     init     = {0};
-    // Initialize LBS.
     init.led_write_handler = led_write_handler;
-
     err_code = ble_lbs_init(&m_lbs, &init);
-
-    NRF_LOG_INFO("ble_lbs_init err_code : %d", err_code);
-    NRF_LOG_FLUSH();
     APP_ERROR_CHECK(err_code);
 
 }
@@ -481,6 +492,15 @@ static void peer_manager_init(void)
     APP_ERROR_CHECK(err_code);
 
     memset(&sec_param, 0, sizeof(ble_gap_sec_params_t));
+    
+    #define SEC_PARAM_BOND                  1                                       /**< Perform bonding. */
+    #define SEC_PARAM_MITM                  0                                       /**< Man In The Middle protection not required. */
+    #define SEC_PARAM_LESC                  0                                       /**< LE Secure Connections not enabled. */
+    #define SEC_PARAM_KEYPRESS              0                                       /**< Keypress notifications not enabled. */
+    #define SEC_PARAM_IO_CAPABILITIES       BLE_GAP_IO_CAPS_NONE                    /**< No I/O capabilities. */
+    #define SEC_PARAM_OOB                   0                                       /**< Out Of Band data not available. */
+    #define SEC_PARAM_MIN_KEY_SIZE          7                                       /**< Minimum encryption key size. */
+    #define SEC_PARAM_MAX_KEY_SIZE          16                                      /**< Maximum encryption key size. */
 
     // Security parameters to be used for all security procedures.
     sec_param.bond           = SEC_PARAM_BOND;
@@ -539,7 +559,10 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
             }
             break;
         case BSP_BUTTON_1:
-            delete_bonds();
+            {
+              NRF_LOG_INFO("BSP_BUTTON_1");
+//              delete_bonds();
+            }
             break;
         case BSP_BUTTON_2:
               NRF_LOG_INFO("BSP_BUTTON_2");
@@ -552,7 +575,6 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
             APP_ERROR_HANDLER(pin_no);
             break;
     }
-    NRF_LOG_FLUSH();
 }
 
 
@@ -653,7 +675,7 @@ int main(void)
     // Initialize.
     log_init();
     timers_init();
-    buttons_init();
+//    buttons_init();
 
     power_management_init();
     ble_stack_init();
@@ -663,12 +685,11 @@ int main(void)
     services_init();
     conn_params_init();
 
-//    peer_manager_init();
-
-    // Start execution.
+    peer_manager_init();
     NRF_LOG_INFO("Template example started.");
 
-    // Enter main loop.
+    ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+
     for (;;)
     {
         idle_state_handle();

@@ -108,6 +108,8 @@ static void on_disconnected(ble_advertising_t * const p_advertising, ble_evt_t c
 {
     uint32_t ret;
 
+    NRF_LOG_INFO("ble_advertising : on_disconnected -> whitelist will be activated and direct advertising is started");
+
     p_advertising->whitelist_temporarily_disabled = false;
 
     if (p_ble_evt->evt.gap_evt.conn_handle == p_advertising->current_slave_link_conn_handle &&
@@ -122,6 +124,9 @@ static void on_disconnected(ble_advertising_t * const p_advertising, ble_evt_t c
 }
 
 
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+
 /**@brief Function for handling the Timeout event.
  *
  * @param[in] p_advertising Advertising module instance.
@@ -131,15 +136,20 @@ static void on_terminated(ble_advertising_t * const p_advertising, ble_evt_t con
 {
     ret_code_t ret;
 
-    if (p_ble_evt->header.evt_id != BLE_GAP_EVT_ADV_SET_TERMINATED)
-    {
-        // Nothing to do.
-        return;
-    }
+    NRF_LOG_INFO("on_terminated reached in ble_advertising.c");
+    
+//    if (p_ble_evt->header.evt_id != BLE_GAP_EVT_ADV_SET_TERMINATED)
+//    {
+//        NRF_LOG_INFO("advertising is terminated by timeout");
+//        return;
+//    }
 
     if (  p_ble_evt->evt.gap_evt.params.adv_set_terminated.reason == BLE_GAP_EVT_ADV_SET_TERMINATED_REASON_TIMEOUT
         ||p_ble_evt->evt.gap_evt.params.adv_set_terminated.reason == BLE_GAP_EVT_ADV_SET_TERMINATED_REASON_LIMIT_REACHED)
     {
+    
+        NRF_LOG_INFO("Start advertising in the next mode.");
+
         // Start advertising in the next mode.
         ret = ble_advertising_start(p_advertising, adv_mode_next_get(p_advertising->adv_mode_current));
 
