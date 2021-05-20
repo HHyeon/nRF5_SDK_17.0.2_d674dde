@@ -96,6 +96,9 @@ static void on_connected(ble_advertising_t * const p_advertising, ble_evt_t cons
     {
         p_advertising->current_slave_link_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
     }
+
+    NRF_LOG_INFO("ble_advertising : on_connected -> adv idle");
+    ble_advertising_start(p_advertising, BLE_ADV_MODE_IDLE);
 }
 
 
@@ -106,12 +109,16 @@ static void on_connected(ble_advertising_t * const p_advertising, ble_evt_t cons
  */
 static void on_disconnected(ble_advertising_t * const p_advertising, ble_evt_t const * p_ble_evt)
 {
+
+    NRF_LOG_INFO("ble_advertising : on_disconnected");
+
+    return;
+
     uint32_t ret;
 
-    NRF_LOG_INFO("ble_advertising : on_disconnected -> whitelist will be activated and direct advertising is started");
+    NRF_LOG_INFO("ble_advertising : on_disconnected -> whitelist activated and direct advertising");
 
     p_advertising->whitelist_temporarily_disabled = false;
-
     if (p_ble_evt->evt.gap_evt.conn_handle == p_advertising->current_slave_link_conn_handle &&
         p_advertising->adv_modes_config.ble_adv_on_disconnect_disabled == false)
     {
@@ -137,12 +144,23 @@ static void on_terminated(ble_advertising_t * const p_advertising, ble_evt_t con
     ret_code_t ret;
 
     NRF_LOG_INFO("on_terminated reached in ble_advertising.c");
+
+
+    NRF_LOG_INFO("ble_advertising_start with FAST MODE ");
+
+    ret = ble_advertising_start(p_advertising, BLE_ADV_MODE_FAST);
+
+    if ((ret != NRF_SUCCESS) && (p_advertising->error_handler != NULL))
+    {
+        p_advertising->error_handler(ret);
+    }
     
-//    if (p_ble_evt->header.evt_id != BLE_GAP_EVT_ADV_SET_TERMINATED)
-//    {
-//        NRF_LOG_INFO("advertising is terminated by timeout");
-//        return;
-//    }
+    /*
+    if (p_ble_evt->header.evt_id != BLE_GAP_EVT_ADV_SET_TERMINATED)
+    {
+        NRF_LOG_INFO("advertising is terminated by timeout");
+        return;
+    }
 
     if (  p_ble_evt->evt.gap_evt.params.adv_set_terminated.reason == BLE_GAP_EVT_ADV_SET_TERMINATED_REASON_TIMEOUT
         ||p_ble_evt->evt.gap_evt.params.adv_set_terminated.reason == BLE_GAP_EVT_ADV_SET_TERMINATED_REASON_LIMIT_REACHED)
@@ -158,6 +176,9 @@ static void on_terminated(ble_advertising_t * const p_advertising, ble_evt_t con
             p_advertising->error_handler(ret);
         }
     }
+
+    */
+
 }
 
 

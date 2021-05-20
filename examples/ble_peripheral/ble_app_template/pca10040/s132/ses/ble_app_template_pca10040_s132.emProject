@@ -140,7 +140,7 @@
     <configuration
       Name="Release"
       c_user_include_directories=".;../../../../../../components/ble/ble_services/ble_lbs\;;../../../../../../components/ble/ble_services/ble_lbs_c\;"
-      linker_section_placement_macros="RAM_START=0x20002270;RAM_SIZE=0xdd90" />
+      linker_section_placement_macros="RAM_START=0x20002990;RAM_SIZE=0xd670" />
   </project>
   <configuration
     Name="Release"
