@@ -86,6 +86,7 @@
 #include "ble_lbs.h"
 #include "pca10040.h"
 #include "boards.h"
+#include "ble_hids.h"
 
 #define LINK_TOTAL                      NRF_SDH_BLE_PERIPHERAL_LINK_COUNT + NRF_SDH_BLE_CENTRAL_LINK_COUNT
 #define DEVICE_NAME                     "Nordic_Template"                       /**< Name of device. Will be included in the advertising data. */
@@ -109,9 +110,30 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
+#define MOVEMENT_SPEED                  5                                           /**< Number of pixels by which the cursor is moved each time a button is pushed. */
+#define INPUT_REPORT_COUNT              3                                           /**< Number of input reports in this application. */
+#define INPUT_REP_BUTTONS_LEN           3                                           /**< Length of Mouse Input Report containing button data. */
+#define INPUT_REP_MOVEMENT_LEN          3                                           /**< Length of Mouse Input Report containing movement data. */
+#define INPUT_REP_MEDIA_PLAYER_LEN      1                                           /**< Length of Mouse Input Report containing media player data. */
+#define INPUT_REP_BUTTONS_INDEX         0                                           /**< Index of Mouse Input Report containing button data. */
+#define INPUT_REP_MOVEMENT_INDEX        1                                           /**< Index of Mouse Input Report containing movement data. */
+#define INPUT_REP_MPLAYER_INDEX         2                                           /**< Index of Mouse Input Report containing media player data. */
+#define INPUT_REP_REF_BUTTONS_ID        1                                           /**< Id of reference to Mouse Input Report containing button data. */
+#define INPUT_REP_REF_MOVEMENT_ID       2                                           /**< Id of reference to Mouse Input Report containing movement data. */
+#define INPUT_REP_REF_MPLAYER_ID        3                                           /**< Id of reference to Mouse Input Report containing media player data. */
+
+#define BASE_USB_HID_SPEC_VERSION       0x0101                                      /**< Version number of base USB HID Specification implemented by this application. */
+
+
+
+BLE_HIDS_DEF(m_hids,
+             NRF_SDH_BLE_TOTAL_LINK_COUNT,
+             INPUT_REP_BUTTONS_LEN,
+             INPUT_REP_MOVEMENT_LEN,
+             INPUT_REP_MEDIA_PLAYER_LEN);
+
 BLE_LBS_DEF(m_lbs);
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
-//NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
 NRF_BLE_QWRS_DEF(m_qwr, NRF_SDH_BLE_TOTAL_LINK_COUNT);
 BLE_ADVERTISING_DEF(m_advertising);                                             /**< Advertising module instance. */
 
@@ -140,7 +162,6 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 {
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
-
 
 
 const char *PM_EVT_MSGS[] = {
@@ -363,6 +384,194 @@ static void led_write_handler(uint16_t conn_handle, ble_lbs_t * p_lbs, uint8_t l
 }
 
 
+
+
+
+
+static void service_error_handler(uint32_t nrf_error)
+{
+    APP_ERROR_HANDLER(nrf_error);
+}
+
+
+static void on_hids_evt(ble_hids_t * p_hids, ble_hids_evt_t * p_evt)
+{
+    switch (p_evt->evt_type)
+    {
+        case BLE_HIDS_EVT_BOOT_MODE_ENTERED:
+            NRF_LOG_INFO("BLE_HIDS_EVT_BOOT_MODE_ENTERED");
+            break;
+
+        case BLE_HIDS_EVT_REPORT_MODE_ENTERED:
+            NRF_LOG_INFO("BLE_HIDS_EVT_REPORT_MODE_ENTERED");
+            break;
+
+        case BLE_HIDS_EVT_NOTIF_ENABLED:
+            break;
+
+        default:
+            // No implementation needed.
+            break;
+    }
+}
+
+/**@brief Function for initializing HID Service.
+ */
+static void hids_init(void)
+{
+    ret_code_t                err_code;
+    ble_hids_init_t           hids_init_obj;
+    ble_hids_inp_rep_init_t * p_input_report;
+    uint8_t                   hid_info_flags;
+
+    static ble_hids_inp_rep_init_t inp_rep_array[INPUT_REPORT_COUNT];
+    static uint8_t rep_map_data[] =
+    {
+        0x05, 0x01, // Usage Page (Generic Desktop)
+        0x09, 0x02, // Usage (Mouse)
+
+        0xA1, 0x01, // Collection (Application)
+
+        // Report ID 1: Mouse buttons + scroll/pan
+        0x85, 0x01,       // Report Id 1
+        0x09, 0x01,       // Usage (Pointer)
+        0xA1, 0x00,       // Collection (Physical)
+        0x95, 0x05,       // Report Count (3)
+        0x75, 0x01,       // Report Size (1)
+        0x05, 0x09,       // Usage Page (Buttons)
+        0x19, 0x01,       // Usage Minimum (01)
+        0x29, 0x05,       // Usage Maximum (05)
+        0x15, 0x00,       // Logical Minimum (0)
+        0x25, 0x01,       // Logical Maximum (1)
+        0x81, 0x02,       // Input (Data, Variable, Absolute)
+        0x95, 0x01,       // Report Count (1)
+        0x75, 0x03,       // Report Size (3)
+        0x81, 0x01,       // Input (Constant) for padding
+        0x75, 0x08,       // Report Size (8)
+        0x95, 0x01,       // Report Count (1)
+        0x05, 0x01,       // Usage Page (Generic Desktop)
+        0x09, 0x38,       // Usage (Wheel)
+        0x15, 0x81,       // Logical Minimum (-127)
+        0x25, 0x7F,       // Logical Maximum (127)
+        0x81, 0x06,       // Input (Data, Variable, Relative)
+        0x05, 0x0C,       // Usage Page (Consumer)
+        0x0A, 0x38, 0x02, // Usage (AC Pan)
+        0x95, 0x01,       // Report Count (1)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0xC0,             // End Collection (Physical)
+
+        // Report ID 2: Mouse motion
+        0x85, 0x02,       // Report Id 2
+        0x09, 0x01,       // Usage (Pointer)
+        0xA1, 0x00,       // Collection (Physical)
+        0x75, 0x0C,       // Report Size (12)
+        0x95, 0x02,       // Report Count (2)
+        0x05, 0x01,       // Usage Page (Generic Desktop)
+        0x09, 0x30,       // Usage (X)
+        0x09, 0x31,       // Usage (Y)
+        0x16, 0x01, 0xF8, // Logical maximum (2047)
+        0x26, 0xFF, 0x07, // Logical minimum (-2047)
+        0x81, 0x06,       // Input (Data, Variable, Relative)
+        0xC0,             // End Collection (Physical)
+        0xC0,             // End Collection (Application)
+
+        // Report ID 3: Advanced buttons
+        0x05, 0x0C,       // Usage Page (Consumer)
+        0x09, 0x01,       // Usage (Consumer Control)
+        0xA1, 0x01,       // Collection (Application)
+        0x85, 0x03,       // Report Id (3)
+        0x15, 0x00,       // Logical minimum (0)
+        0x25, 0x01,       // Logical maximum (1)
+        0x75, 0x01,       // Report Size (1)
+        0x95, 0x01,       // Report Count (1)
+
+        0x09, 0xCD,       // Usage (Play/Pause)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0x0A, 0x83, 0x01, // Usage (AL Consumer Control Configuration)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0x09, 0xB5,       // Usage (Scan Next Track)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0x09, 0xB6,       // Usage (Scan Previous Track)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+
+        0x09, 0xEA,       // Usage (Volume Down)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0x09, 0xE9,       // Usage (Volume Up)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0x0A, 0x25, 0x02, // Usage (AC Forward)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0x0A, 0x24, 0x02, // Usage (AC Back)
+        0x81, 0x06,       // Input (Data,Value,Relative,Bit Field)
+        0xC0              // End Collection
+    };
+
+    memset(inp_rep_array, 0, sizeof(inp_rep_array));
+    // Initialize HID Service.
+    p_input_report                      = &inp_rep_array[INPUT_REP_BUTTONS_INDEX];
+    p_input_report->max_len             = INPUT_REP_BUTTONS_LEN;
+    p_input_report->rep_ref.report_id   = INPUT_REP_REF_BUTTONS_ID;
+    p_input_report->rep_ref.report_type = BLE_HIDS_REP_TYPE_INPUT;
+
+    p_input_report->sec.cccd_wr = SEC_JUST_WORKS;
+    p_input_report->sec.wr      = SEC_JUST_WORKS;
+    p_input_report->sec.rd      = SEC_JUST_WORKS;
+
+    p_input_report                      = &inp_rep_array[INPUT_REP_MOVEMENT_INDEX];
+    p_input_report->max_len             = INPUT_REP_MOVEMENT_LEN;
+    p_input_report->rep_ref.report_id   = INPUT_REP_REF_MOVEMENT_ID;
+    p_input_report->rep_ref.report_type = BLE_HIDS_REP_TYPE_INPUT;
+
+    p_input_report->sec.cccd_wr = SEC_JUST_WORKS;
+    p_input_report->sec.wr      = SEC_JUST_WORKS;
+    p_input_report->sec.rd      = SEC_JUST_WORKS;
+
+    p_input_report                      = &inp_rep_array[INPUT_REP_MPLAYER_INDEX];
+    p_input_report->max_len             = INPUT_REP_MEDIA_PLAYER_LEN;
+    p_input_report->rep_ref.report_id   = INPUT_REP_REF_MPLAYER_ID;
+    p_input_report->rep_ref.report_type = BLE_HIDS_REP_TYPE_INPUT;
+
+    p_input_report->sec.cccd_wr = SEC_JUST_WORKS;
+    p_input_report->sec.wr      = SEC_JUST_WORKS;
+    p_input_report->sec.rd      = SEC_JUST_WORKS;
+
+    hid_info_flags = HID_INFO_FLAG_REMOTE_WAKE_MSK | HID_INFO_FLAG_NORMALLY_CONNECTABLE_MSK;
+
+    memset(&hids_init_obj, 0, sizeof(hids_init_obj));
+
+    hids_init_obj.evt_handler                    = on_hids_evt;
+    hids_init_obj.error_handler                  = service_error_handler;
+    hids_init_obj.is_kb                          = false;
+    hids_init_obj.is_mouse                       = true;
+    hids_init_obj.inp_rep_count                  = INPUT_REPORT_COUNT;
+    hids_init_obj.p_inp_rep_array                = inp_rep_array;
+    hids_init_obj.outp_rep_count                 = 0;
+    hids_init_obj.p_outp_rep_array               = NULL;
+    hids_init_obj.feature_rep_count              = 0;
+    hids_init_obj.p_feature_rep_array            = NULL;
+    hids_init_obj.rep_map.data_len               = sizeof(rep_map_data);
+    hids_init_obj.rep_map.p_data                 = rep_map_data;
+    hids_init_obj.hid_information.bcd_hid        = BASE_USB_HID_SPEC_VERSION;
+    hids_init_obj.hid_information.b_country_code = 0;
+    hids_init_obj.hid_information.flags          = hid_info_flags;
+    hids_init_obj.included_services_count        = 0;
+    hids_init_obj.p_included_services_array      = NULL;
+
+    hids_init_obj.rep_map.rd_sec         = SEC_JUST_WORKS;
+    hids_init_obj.hid_information.rd_sec = SEC_JUST_WORKS;
+
+    hids_init_obj.boot_mouse_inp_rep_sec.cccd_wr = SEC_JUST_WORKS;
+    hids_init_obj.boot_mouse_inp_rep_sec.wr      = SEC_JUST_WORKS;
+    hids_init_obj.boot_mouse_inp_rep_sec.rd      = SEC_JUST_WORKS;
+
+    hids_init_obj.protocol_mode_rd_sec = SEC_JUST_WORKS;
+    hids_init_obj.protocol_mode_wr_sec = SEC_JUST_WORKS;
+    hids_init_obj.ctrl_point_wr_sec    = SEC_JUST_WORKS;
+
+    err_code = ble_hids_init(&m_hids, &hids_init_obj);
+    APP_ERROR_CHECK(err_code);
+}
+
+
 /**@brief Function for initializing services that will be used by the application.
  */
 static void services_init(void)
@@ -370,7 +579,6 @@ static void services_init(void)
     ret_code_t         err_code;
 
     nrf_ble_qwr_init_t qwr_init = {0};
-
     qwr_init.error_handler = nrf_qwr_error_handler;
 
     for (uint32_t i = 0; i < LINK_TOTAL; i++)
@@ -386,6 +594,7 @@ static void services_init(void)
     err_code = ble_lbs_init(&m_lbs, &init);
     APP_ERROR_CHECK(err_code);
 
+    hids_init();
 }
 
 
@@ -476,12 +685,18 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
             NRF_LOG_INFO("Fast advertising.");
+            bsp_board_led_on(2);
             break;
 
         case BLE_ADV_EVT_IDLE:
-            NRF_LOG_INFO("advertising IDLE.");
-//            sleep_mode_enter();
+            NRF_LOG_INFO("advertising IDLE");
+            bsp_board_led_off(2);
             break;
+
+        case BLE_ADV_EVT_FAST_WHITELIST:
+            NRF_LOG_INFO("Fast advertising with WhiteList.");            
+            break;
+
 
         case BLE_ADV_EVT_WHITELIST_REQUEST:
         {
@@ -556,8 +771,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         {
             bsp_board_led_off(0);
             bsp_board_led_off(1);
-            bsp_board_led_off(2);
-            bsp_board_led_off(3);
 
             NRF_LOG_INFO("Connection 0x%x has been disconnected. Reason: 0x%X",
                           p_ble_evt->evt.gap_evt.conn_handle,
@@ -572,6 +785,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GAP_EVT_CONNECTED:
         {
+            bsp_board_led_off(2);
+
             uint32_t periph_link_cnt = ble_conn_state_peripheral_conn_count(); // Number of peripheral links.
             NRF_LOG_INFO("Connection with link 0x%x established. periph_link_cnt : %d", p_ble_evt->evt.gap_evt.conn_handle, periph_link_cnt);
 

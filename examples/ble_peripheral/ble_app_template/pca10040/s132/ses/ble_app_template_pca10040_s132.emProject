@@ -93,6 +93,7 @@
     </folder>
     <folder Name="nrf_ble_services">
       <file file_name="../../../../../../components/ble/ble_services/ble_lbs/ble_lbs.c" />
+      <file file_name="../../../../../../components/ble/ble_services/ble_hids/ble_hids.c" />
     </folder>
     <folder Name="Application">
       <file file_name="../../../main.c">
@@ -128,6 +129,7 @@
       <file file_name="../../../../../../components/ble/peer_manager/pm_buffer.c" />
       <file file_name="../../../../../../components/ble/peer_manager/security_dispatcher.c" />
       <file file_name="../../../../../../components/ble/peer_manager/security_manager.c" />
+      <file file_name="../../../../../../components/ble/ble_link_ctx_manager/ble_link_ctx_manager.c" />
     </folder>
     <folder Name="UTF8/UTF16 converter">
       <file file_name="../../../../../../external/utf_converter/utf.c" />
@@ -139,7 +141,7 @@
     </folder>
     <configuration
       Name="Release"
-      c_user_include_directories=".;../../../../../../components/ble/ble_services/ble_lbs\;;../../../../../../components/ble/ble_services/ble_lbs_c\;"
+      c_user_include_directories=".;../../../../../../components/ble/ble_services/ble_lbs;../../../../../../components/ble/ble_services/ble_hids;../../../../../../components/ble/ble_link_ctx_manager"
       linker_section_placement_macros="RAM_START=0x20002990;RAM_SIZE=0xd670" />
   </project>
   <configuration
